@@ -103,7 +103,8 @@ Attach this policy to the IAM role assigned to your Ubuntu EC2 host.
      - SSH (TCP/22) from your IP  
      - HTTP (TCP/80) for WAF testing  
      - Jenkins (TCP/8080) from your IP range  
-     - Application (TCP/10007) *optional* from your IP  
+     - Application (TCP/10007) *optional* from your IP
+     
      Example ruleset:
      | Protocol | Port Range | Source           | Purpose                 |
      |----------|------------|------------------|-------------------------|
