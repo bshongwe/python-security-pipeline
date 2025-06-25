@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/jenkins/build?job=PythonSecurityPipeline&server=https%3A%2F%2Fjenkins.example.com)](https://jenkins.example.com/job/PythonSecurityPipeline/)
 
-🚀 A Jenkins end-to-end DevSecOps pipeline for a Python web application, hosted on AWS Ubuntu 18.04 LTS.
+
 
 ![DevSecOps Pipeline Workflow Diagram](https://user-images.githubusercontent.com/11514346/71473164-e57a5500-27cd-11ea-97cb-3c25f0266407.JPG "DevSecOps pipeline workflow diagram")
 <img alt="Architecture Diagram of Jenkins, Docker, Selenium, and AWS Resources" src="https://user-images.githubusercontent.com/11514346/71579758-effe5c80-2af5-11ea-97ae-dd6c91b02312.PNG">
@@ -205,6 +205,146 @@ After testing, destroy all AWS resources to avoid charges:
 - ✅ Security groups: reviewed/deleted  
 - ✅ VPC/subnets: deleted if not reused  
 - ✅ S3 buckets or EBS volumes: cleaned up
+
+---
+
+🚀 A Jenkins end-to-end DevSecOps pipeline for a Python web application, hosted on AWS Ubuntu 18.04 LTS.
+
+## 📊 DevSecOps Pipeline Architecture
+
+```mermaid
+graph TB
+    subgraph "🏠 Development Environment"
+        DEV[👨‍💻 Developer]
+        GIT[🔗 Git Repository<br/>python-security-pipeline]
+    end
+
+    subgraph "☁️ AWS Infrastructure"
+        subgraph "🌐 VPC Network"
+            subgraph "📍 Public Subnet"
+                JENKINS_EC2[🖥️ Jenkins EC2<br/>t2.medium<br/>Ubuntu 18.04]
+                TEST_EC2[🖥️ Test EC2<br/>Dynamic Instance]
+            end
+            SG[🛡️ Security Groups<br/>TCP: 22, 80, 8080, 10007]
+        end
+    end
+
+    subgraph "🐳 Jenkins Master Container"
+        JENKINS[🏗️ Jenkins LTS<br/>Port 8080]
+        
+        subgraph "🔄 CI/CD Pipeline Stages"
+            CHECKOUT[📥 Checkout SCM]
+            BUILD[🔨 Build & Test]
+            
+            subgraph "🔒 Security Scanning"
+                TRUFFLEHOG[🐷 TruffleHog<br/>Secret Detection]
+                SAFETY[⚡ Safety<br/>Dependency Scan]
+                BANDIT[🔍 Bandit<br/>SAST Python]
+            end
+            
+            PROVISION[🎭 Ansible<br/>Provision Test EC2]
+            DEPLOY[🚀 Deploy Application]
+            
+            subgraph "🧪 Dynamic Testing"
+                NIKTO[💻 Nikto<br/>Web Vulnerability Scan]
+                SELENIUM[🤖 Selenium<br/>Authenticated DAST]
+                LYNIS[🛡️ Lynis<br/>Host Security Audit]
+            end
+            
+            CLEANUP[🧹 Cleanup Resources]
+        end
+    end
+
+    subgraph "🐳 Selenium Container"
+        SELENIUM_GRID[🕷️ Selenium Grid<br/>Chrome WebDriver]
+    end
+
+    subgraph "🎯 Test Application"
+        PYTHON_APP[🐍 Python Web App<br/>Port 10007]
+        MODSEC[🛡️ ModSecurity WAF<br/>Port 80]
+    end
+
+    %% Flow connections
+    DEV -->|git push| GIT
+    GIT -->|webhook/poll| JENKINS
+    
+    JENKINS --> CHECKOUT
+    CHECKOUT --> BUILD
+    BUILD --> TRUFFLEHOG
+    TRUFFLEHOG --> SAFETY
+    SAFETY --> BANDIT
+    BANDIT --> PROVISION
+    
+    PROVISION -->|Ansible Playbook| TEST_EC2
+    PROVISION --> DEPLOY
+    DEPLOY --> PYTHON_APP
+    DEPLOY --> MODSEC
+    
+    DEPLOY --> NIKTO
+    NIKTO --> SELENIUM
+    SELENIUM <--> SELENIUM_GRID
+    SELENIUM_GRID --> PYTHON_APP
+    SELENIUM --> LYNIS
+    LYNIS --> CLEANUP
+    
+    CLEANUP -->|Terminate| TEST_EC2
+
+    %% Styling
+    classDef awsService fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef security fill:#FF6B6B,stroke:#D32F2F,stroke-width:2px,color:#fff
+    classDef container fill:#0DB7ED,stroke:#0089D0,stroke-width:2px,color:#fff
+    classDef infrastructure fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef pipeline fill:#9C27B0,stroke:#6A1B9A,stroke-width:2px,color:#fff
+
+    class JENKINS_EC2,TEST_EC2,SG awsService
+    class TRUFFLEHOG,SAFETY,BANDIT,NIKTO,LYNIS,MODSEC security
+    class JENKINS,SELENIUM_GRID,PYTHON_APP container
+    class GIT,PROVISION,CLEANUP infrastructure
+    class CHECKOUT,BUILD,DEPLOY,SELENIUM pipeline
+```
+
+## 🔄 Pipeline Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant Dev as 👨‍💻 Developer
+    participant Git as 🔗 Git Repo
+    participant Jenkins as 🏗️ Jenkins
+    participant AWS as ☁️ AWS EC2
+    participant Security as 🔒 Security Tools
+    participant App as 🐍 Python App
+
+    Dev->>Git: 📤 Push code changes
+    Git->>Jenkins: 🔔 Trigger webhook/poll
+    
+    Note over Jenkins: 🔄 CI/CD Pipeline Starts
+    
+    Jenkins->>Git: 📥 Checkout source code
+    Jenkins->>Jenkins: 🔨 Build & unit tests
+    
+    Note over Security: 🔒 Security Scanning Phase
+    Jenkins->>Security: 🐷 TruffleHog: Scan for secrets
+    Jenkins->>Security: ⚡ Safety: Check dependencies
+    Jenkins->>Security: 🔍 Bandit: Static code analysis
+    
+    Jenkins->>AWS: 🎭 Ansible: Provision test instance
+    AWS-->>Jenkins: ✅ EC2 instance ready
+    
+    Jenkins->>App: 🚀 Deploy Python application
+    Jenkins->>App: 🛡️ Configure ModSecurity WAF
+    
+    Note over Security: 🧪 Dynamic Testing Phase
+    Jenkins->>Security: 💻 Nikto: Web vulnerability scan
+    Jenkins->>Security: 🤖 Selenium: Authenticated DAST
+    Jenkins->>Security: 🛡️ Lynis: Host security audit
+    
+    Security-->>Jenkins: 📊 Security reports generated
+    
+    Jenkins->>AWS: 🧹 Cleanup: Terminate test instance
+    AWS-->>Jenkins: ✅ Resources cleaned up
+    
+    Jenkins->>Dev: 📧 Pipeline results notification
+```
 
 ---
 
